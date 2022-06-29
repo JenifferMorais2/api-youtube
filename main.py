@@ -11,6 +11,7 @@ DEVELOPER_KEY = os.environ["DEVELOPER_KEY"] = 'AIzaSyA0oyyBrIM1hpY-z8swVuHdQbG_J
 
 analysis_list = []
 
+
 # Resgata Comentários
 def video_comments(url_video):
 
@@ -23,8 +24,9 @@ def video_comments(url_video):
     while video_response:
         for item in video_response['items']:
             comment = item['snippet']['topLevelComment']['snippet']['textDisplay']
-            if(len(comment) > 0):
-                analysis(comment)
+            analysis(comment)
+            if 'nextPageToken' in video_response:
+              video_response = youtube.commentThreads().list(part='snippet, replies', videoId= video_id).execute()
         else:
             break
 
@@ -37,10 +39,11 @@ def analysis(comment):
         b"2274-jVwH/V0Q:gq3STLhSz2IY3Bey+btyOmN7xpo+HuK5kSRtLK+/").decode("ascii")
     headers = {'Content-type': 'application/json', "Authorization": "Basic %s" % userAndPass}
     response = requests.post(url, data=data_json, headers=headers)
-    # print(comment, '\n', dict(response.json())['sentiment']['label'], end=('\n' * 2))
+    print(comment, '\n', dict(response.json())['sentiment']['label'], end=('\n' * 2))
 
     dictionary = {"comment": comment, "analysis": response.json()}
     analysis_list.append(dictionary)
+
 
 # Trata URL resgatando apenas ID
 def handler_video(url_video):
@@ -49,53 +52,34 @@ def handler_video(url_video):
 
 
 # Método para gerar aquivo JSON
-def writeJSON(url_video):
+def write(url_video):
     analysis_json = json.dumps(analysis_list, indent=4, ensure_ascii=False)
-    with open("JSON/comment.json", "a", encoding="utf-8") as outfile:
-      outfile.write("Vídeo:")
-      outfile.write(url_video)
-      outfile.write(analysis_json)
 
-#Metodo de limpeza para o proximo vídeo
-def clear():
-    analysis_list.clear()
+    # with open("comment.json", "a", encoding="utf-8") as outfile:
+    #   outfile.write("Vídeo:")
+    #   outfile.write(url_video)
+    #   outfile.write(analysis_json)
 
-# Método para gerar aquivo CSV sem o comentario
-def writeCSV(url_video):
-    analysis_json = json.dumps(analysis_list, indent=4, ensure_ascii=False)
     x = json.loads(analysis_json, object_hook=lambda d:namedtuple('X', d.keys())(*d.values()))
     aux = 0
+    print(x[0])
+    header = ['Video', 'Comment', 'Sadness', 'Joy', 'Fear', 'Disgust', 'Anger', 'Score', 'Label']
 
-    with open('CSV/emotionsOFF.csv', 'a', encoding = 'utf-8') as f:
-       writer = csv.writer(f, lineterminator="\n")
-       header = ['Video']
-       data = [url_video]
-       while aux < len(x):
-           header.extend(['Sadness', 'Joy', 'Fear', 'Disgust', 'Anger', 'Score', 'Label'])
-           data.extend([x[aux].analysis.emotions.sadness, x[aux].analysis.emotions.joy,
-                   x[aux].analysis.emotions.fear, x[aux].analysis.emotions.disgust, x[aux].analysis.emotions.anger,
-                   x[aux].analysis.sentiment.score, x[aux].analysis.sentiment.label])
-           aux = aux + 1
+
+    with open('csv_file.csv', 'w', encoding='latin_1') as f:
+       writer = csv.writer(f)
        writer.writerow(header)
-       writer.writerow(data)
-       writer.writerow("\n")
-
+       while aux < len(x):
+           data = [url_video, x[aux].comment.replace(","," "), x[aux].analysis.emotions.sadness, x[aux].analysis.emotions.joy,
+                   x[aux].analysis.emotions.fear, x[aux].analysis.emotions.disgust, x[aux].analysis.emotions.anger,
+                   x[aux].analysis.sentiment.score, x[aux].analysis.sentiment.label]
+           writer.writerow(data)
+           aux = aux + 1
        f.close()
 
-def inicio(url_video):
-    video_comments(url_video)
-    # Escreve arquivo csv somente com as emoções
-    writeCSV(url_video)
-    # Escreve arquivo JSON completo
-    # writeJSON(url_video)
-    clear()
-
-# if __name__ == '__main__':
-#     url_video = input("Link do Vídeo? ")
-#     url_video = "https://www.youtube.com/watch?v=FcrMEfjLxwg"
-#     inicio(url_video)
-
-
-
-
-
+if __name__ == '__main__':
+    #url_video = input("Link do Vídeo? ")
+    #video_comments(url_video)
+    video_comments("https://www.youtube.com/watch?v=iFYWrDMfVNo")
+    url_video = "https://www.youtube.com/watch?v=iFYWrDMfVNo"
+    write(url_video)
